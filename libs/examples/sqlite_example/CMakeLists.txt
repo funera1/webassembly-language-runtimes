@@ -8,7 +8,7 @@ endif()
 
 add_executable(
     sqlite_example
-    main.c
+    kvs.c
 )
 
 find_package(PkgConfig REQUIRED)

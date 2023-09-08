@@ -1,6 +1,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 static char *USAGE_FMT =
@@ -44,20 +45,6 @@ int main(int argc, char **argv)
     }
   }
 
-  // printf("3. Creating 'Sample' table data...\n");
-  // if (insert_sample_data(db_file) != 0)
-  // {
-  //     fprintf(stderr, "Failed to create 'Sample' table data!\n");
-  //     return -1;
-  // }
-  // 
-  // printf("4. Reading 'Sample' table data...\n");
-  // if (read_sample_data(db_file) != 0)
-  // {
-  //     fprintf(stderr, "Failed to read 'Sample' table data!\n");
-  //     return -1;
-  // }
-
   // TABLE作成
   sqlite3 *db;
   if (sqlite3_open(db_file, &db) != SQLITE_OK)
@@ -82,26 +69,65 @@ int main(int argc, char **argv)
   // ループでsetとgetを選択する
   while (1) {
     // set: 0, get: 1, exit: other
-    printf("\x1b[32m[+] Input 0(set) or 1(get) or other\n");
+    printf("\x1b[32m[+] Input 0(set) or 1(get) or 2(migration) or other\n\x1b[m");
 
-    int command;
-    scanf("%d", &command);
+    int command = 0;
+    char input_str[100];
+    scanf("%s", input_str);
+
+    printf("input is %s\n", input_str);
+
+    int invalid_input = 0;
+    // 文字列で受け取ったものを整数型へ変換
+    for (int i = 0; i < strlen(input_str); i++) {
+      char c = input_str[i];
+      if ('0' <= c && c <= '9') {
+        command = 10 * command + (int)(c - '0');
+      }
+      else {
+        printf("入力がおかしいです\n");
+        invalid_input = 1;
+        break;
+      }
+    }
+    // 入力がおかしければcontinue
+    if (invalid_input) {
+      continue;
+    }
 
     switch (command) {
       int key, val;
       case 0:
-        printf("\x1b[32m[+] Please input 'key', 'value'\n");
+        printf("\x1b[32m[+] SET MODE: Please input 'key', 'value'\n\x1b[m");
         scanf("%d, %d", &key, &val);
-        insert(key, val, db);
+        if (insert(key, val, db) != 0) {
+          printf("\x1b[31m");
+          printf("[ERROR] failed to insert\n");
+          printf("\x1b[m");
+
+          sqlite3_close(db);
+          return -1;
+        }
         break;
       case 1:
-        printf("\x1b[32m[+] Please input 'key'\n");
+        printf("\x1b[32m[+] GET MODE: Please input 'key'\n\x1b[m");
         scanf("%d", &key);
-        select(key, db);
+        if (select(key, db) != 0) {
+          printf("\x1b[31m");
+          printf("[ERROR] failed to select\n");
+          printf("\x1b[m");
+
+          sqlite3_close(db);
+          return -1;
+        }
+        break;
+      case 2:
+        printf("\x1b[32m[+] MIGRATION MODE: Sleep(1s)\n\x1b[m");
+        sleep(1);
         break;
       default:
         printf("Exit\n");
-        sqlite3_close(db);
+        // sqlite3_close(db);
         return 0;
     }
   }
@@ -109,16 +135,40 @@ int main(int argc, char **argv)
   return 0;
 }
 
+int Error(int rc, char* msg) {
+    printf("\x1b[31m");
+    printf("[ERROR] %s\n", msg);
+    printf("[ERROR] errmsg is %s\n", sqlite3_errstr(rc));
+    printf("\x1b[m");
+    return -1;
+}
+
 int insert(int key, int val, sqlite3 *db) {
   char *sql_command = 
     "INSERT INTO Sample (key, value) VALUES (?, ?);";
   sqlite3_stmt* pStmt;
-  sqlite3_prepare_v2(db, sql_command, -1, &pStmt, NULL);
 
+  // prepare
+  int status = sqlite3_prepare_v2(db, sql_command, -1, &pStmt, NULL);
+  if (status != SQLITE_OK) {
+    // printf("[ERROR] failed to sqlite3_prepare_v2.\n");
+    return Error(status, "failed to sqlite3_prepare_v2.");
+  }
+
+  // bind
   sqlite3_bind_int(pStmt, 1, key);
   sqlite3_bind_int(pStmt, 2, val);
 
-  while(sqlite3_step(pStmt) == SQLITE_BUSY) {}
+  // SQL statementを実行
+  do {
+    status = sqlite3_step(pStmt);
+  } while(status == SQLITE_BUSY);
+  
+  if (status != SQLITE_DONE) {
+    return Error(status, "failed to execute sql statement");
+  }
+
+  // destruct
   sqlite3_reset(pStmt);
   sqlite3_clear_bindings(pStmt);
 
@@ -131,75 +181,34 @@ int select(int key, sqlite3 *db) {
   char *sql_command = 
     "SELECT value FROM Sample WHERE key = ?";
   sqlite3_stmt* pStmt;
-  sqlite3_prepare_v2(db, sql_command, -1, &pStmt, NULL);
 
+  // prepare
+  int status = sqlite3_prepare_v2(db, sql_command, -1, &pStmt, NULL);
+  if (status != SQLITE_OK) {
+    return Error(status, "failed to sqlite3_prepare_v2.");
+  }
+
+  // bind
   sqlite3_bind_int(pStmt, 1, key);
 
-  while(sqlite3_step(pStmt) == SQLITE_ROW) {
+  // SQL statementを実行
+  do {
+    status = sqlite3_step(pStmt);
+    if (status != SQLITE_ROW) break;
+
     int value = sqlite3_column_int(pStmt, 0);
     printf("{key, value} = {%d, %d}\n", key, value);
+  } while(status == SQLITE_ROW);
+
+  if (status != SQLITE_DONE) {
+    return Error(status, "failed to execute sql statement");
   }
+
+  // destruct
   sqlite3_reset(pStmt);
   sqlite3_clear_bindings(pStmt);
 
   sqlite3_finalize(pStmt);
 
-  return 0;
-}
-
-
-// Note: While simple to read, the callback approach is deprecated!
-int read_lines_cb(void *linePtr, int columns, char **values, char **names)
-{
-  int *line = (int *)linePtr;
-  // Print headers on first line
-  if (*line == 0)
-  {
-    for (int i = 0; i < columns; ++i)
-      printf("|%-20s", names[i]);
-
-    printf("|\n");
-
-    for (int i = 0; i < columns; ++i)
-      printf("+====================");
-
-    printf("+\n");
-  }
-
-  (*line)++;
-
-  // Print values
-  for (int i = 0; i < columns; ++i)
-    printf("|%-20s", values[i] ? values[i] : "NULL");
-
-  printf("|\n");
-  return 0;
-}
-
-int read_sample_data(char *db_file)
-{
-  sqlite3 *db;
-  if (sqlite3_open(db_file, &db) != SQLITE_OK)
-  {
-    fprintf(stderr, "Failed to open db in '%s' with error: %s\n", db_file, sqlite3_errmsg(db));
-    sqlite3_close(db);
-    return -1;
-  }
-
-  char *sql_command = "SELECT * FROM Sample";
-  char *error_message = NULL;
-  int line_number = 0;
-  if (sqlite3_exec(db, sql_command, read_lines_cb, &line_number, &error_message) != SQLITE_OK)
-  {
-    fprintf(stderr, "SQL execution failed with error: %s\n", error_message);
-
-    sqlite3_free(error_message);
-    sqlite3_close(db);
-
-    return -1;
-  }
-  printf("%d total record(s).\n", line_number);
-
-  sqlite3_close(db);
   return 0;
 }
