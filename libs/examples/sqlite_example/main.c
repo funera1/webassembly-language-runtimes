@@ -1,6 +1,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 static char *USAGE_FMT =
@@ -43,21 +44,6 @@ int main(int argc, char **argv)
       return -1;
     }
   }
-
-  // printf("3. Creating 'Sample' table data...\n");
-  // if (insert_sample_data(db_file) != 0)
-  // {
-  //     fprintf(stderr, "Failed to create 'Sample' table data!\n");
-  //     return -1;
-  // }
-  // 
-  // printf("4. Reading 'Sample' table data...\n");
-  // if (read_sample_data(db_file) != 0)
-  // {
-  //     fprintf(stderr, "Failed to read 'Sample' table data!\n");
-  //     return -1;
-  // }
-
   // TABLE作成
   sqlite3 *db;
   if (sqlite3_open(db_file, &db) != SQLITE_OK)
@@ -82,7 +68,7 @@ int main(int argc, char **argv)
   // ループでsetとgetを選択する
   while (1) {
     // set: 0, get: 1, exit: other
-    printf("\x1b[32m[+] Input 0(set) or 1(get) or other\n");
+    printf("\x1b[32m[+] Input 0(set) or 1(get) or 2(migration) or other\n");
 
     int command;
     scanf("%d", &command);
@@ -90,14 +76,19 @@ int main(int argc, char **argv)
     switch (command) {
       int key, val;
       case 0:
-        printf("\x1b[32m[+] Please input 'key', 'value'\n");
+        printf("\x1b[32m[+] Set Mode: Please input 'key', 'value'\x1b[m\n");
         scanf("%d, %d", &key, &val);
         insert(key, val, db);
         break;
       case 1:
-        printf("\x1b[32m[+] Please input 'key'\n");
+        printf("\x1b[32m[+] Get Mode: Please input 'key'\x1b[m\n");
         scanf("%d", &key);
         select(key, db);
+        break;
+      case 2:
+        printf("\x1b[32m[+] Migration Mode: sleep(10s)\x1b[m\n");
+        sleep(10);
+        printf("\x1b[32m[+] End sleep\x1b[m\n");
         break;
       default:
         printf("Exit\n");
