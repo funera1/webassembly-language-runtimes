@@ -122,12 +122,17 @@ int main(int argc, char **argv)
         }
         break;
       case 2:
-        printf("\x1b[32m[+] MIGRATION MODE: Sleep(1s)\n\x1b[m");
-        sleep(1);
+        sqlite3_close(db);
+
+        int sleep_seccond = 3;
+        printf("\x1b[32m[+] MIGRATION MODE: Sleep(%ds)\n\x1b[m", sleep_seccond);
+        sleep(sleep_seccond);
+
+        sqlite3_open(db_file, &db);
         break;
       default:
         printf("Exit\n");
-        // sqlite3_close(db);
+        sqlite3_close(db);
         return 0;
     }
   }
