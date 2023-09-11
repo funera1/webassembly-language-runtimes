@@ -24,7 +24,7 @@ int file_exists(char *file_path)
 
 int main(int argc, char **argv)
 {
-  if (argc != 2 || 0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h"))
+  if (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h"))
   {
     fprintf(stderr, USAGE_FMT, argv[0], argv[0]);
     return -1;
@@ -32,24 +32,11 @@ int main(int argc, char **argv)
 
   printf("1. Running with SQLite version %s\n", sqlite3_libversion());
 
-  char *db_file = argv[1];
-  printf("2. Using db file %s\n", db_file);
-  if (file_exists(db_file))
-  {
-    printf("File '%s' exists. Removing...\n", db_file);
-    int remove_result = remove(db_file);
-    if (remove_result)
-    {
-      perror(db_file);
-      return -1;
-    }
-  }
-
   // TABLE作成
   sqlite3 *db;
-  if (sqlite3_open(db_file, &db) != SQLITE_OK)
+  if (sqlite3_open(":memory:", &db) != SQLITE_OK)
   {
-    fprintf(stderr, "Failed to open db in '%s' with error: %s\n", db_file, sqlite3_errmsg(db));
+    fprintf(stderr, "[ERROR] %s\n", sqlite3_errmsg(db));
     sqlite3_close(db);
     return -1;
   }
@@ -96,7 +83,7 @@ int main(int argc, char **argv)
     }
 
     switch (command) {
-      int key, val;
+      int key, val, sleep_seccond;
       case 0:
         printf("\x1b[32m[+] SET MODE: Please input 'key', 'value'\n\x1b[m");
         scanf("%d, %d", &key, &val);
@@ -122,13 +109,9 @@ int main(int argc, char **argv)
         }
         break;
       case 2:
-        sqlite3_close(db);
-
-        int sleep_seccond = 3;
+        sleep_seccond = 1;
         printf("\x1b[32m[+] MIGRATION MODE: Sleep(%ds)\n\x1b[m", sleep_seccond);
         sleep(sleep_seccond);
-
-        sqlite3_open(db_file, &db);
         break;
       default:
         printf("Exit\n");
