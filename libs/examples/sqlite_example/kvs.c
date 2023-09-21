@@ -24,15 +24,14 @@ int file_exists(char *file_path)
 
 int main(int argc, char **argv)
 {
+  // Input is incorrect.
   if (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h"))
   {
     fprintf(stderr, USAGE_FMT, argv[0], argv[0]);
     return -1;
   }
 
-  printf("1. Running with SQLite version %s\n", sqlite3_libversion());
-
-  // TABLE作成
+  // Open the database in memory.
   sqlite3 *db;
   if (sqlite3_open(":memory:", &db) != SQLITE_OK)
   {
@@ -41,6 +40,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  // Initialize the table.
   char *err_msg = NULL;
   int err = sqlite3_exec(db, 
       "CREATE TABLE IF NOT EXISTS Sample"
@@ -53,19 +53,16 @@ int main(int argc, char **argv)
   printf("CREATE TABLE!\n");
 
 
-  // ループでsetとgetを選択する
   while (1) {
-    // set: 0, get: 1, exit: other
+    // set: 0, get: 1, migration: 2, exit: other
     printf("\x1b[32m[+] Input 0(set) or 1(get) or 2(migration) or other\n\x1b[m");
 
     int command = 0;
     char input_str[100];
     scanf("%s", input_str);
 
-    printf("input is %s\n", input_str);
-
     int invalid_input = 0;
-    // 文字列で受け取ったものを整数型へ変換
+    // convert the received value type from string to int.
     for (int i = 0; i < strlen(input_str); i++) {
       char c = input_str[i];
       if ('0' <= c && c <= '9') {
@@ -77,7 +74,7 @@ int main(int argc, char **argv)
         break;
       }
     }
-    // 入力がおかしければcontinue
+    // continue when input is invalid.
     if (invalid_input) {
       continue;
     }
@@ -87,6 +84,7 @@ int main(int argc, char **argv)
       case 0:
         printf("\x1b[32m[+] SET MODE: Please input 'key', 'value'\n\x1b[m");
         scanf("%d, %d", &key, &val);
+        // Insert
         if (insert(key, val, db) != 0) {
           printf("\x1b[31m");
           printf("[ERROR] failed to insert\n");
@@ -99,6 +97,7 @@ int main(int argc, char **argv)
       case 1:
         printf("\x1b[32m[+] GET MODE: Please input 'key'\n\x1b[m");
         scanf("%d", &key);
+        // Select
         if (select(key, db) != 0) {
           printf("\x1b[31m");
           printf("[ERROR] failed to select\n");
@@ -139,15 +138,14 @@ int insert(int key, int val, sqlite3 *db) {
   // prepare
   int status = sqlite3_prepare_v2(db, sql_command, -1, &pStmt, NULL);
   if (status != SQLITE_OK) {
-    // printf("[ERROR] failed to sqlite3_prepare_v2.\n");
     return Error(status, "failed to sqlite3_prepare_v2.");
   }
 
-  // bind
+  // bind the values to the prepared statement
   sqlite3_bind_int(pStmt, 1, key);
   sqlite3_bind_int(pStmt, 2, val);
 
-  // SQL statementを実行
+  // execute the SQL statement
   do {
     status = sqlite3_step(pStmt);
   } while(status == SQLITE_BUSY);
@@ -156,10 +154,9 @@ int insert(int key, int val, sqlite3 *db) {
     return Error(status, "failed to execute sql statement");
   }
 
-  // destruct
+  // finalize
   sqlite3_reset(pStmt);
   sqlite3_clear_bindings(pStmt);
-
   sqlite3_finalize(pStmt);
 
   return 0;
@@ -176,26 +173,32 @@ int select(int key, sqlite3 *db) {
     return Error(status, "failed to sqlite3_prepare_v2.");
   }
 
-  // bind
+  // bind the values to the prepared statement
   sqlite3_bind_int(pStmt, 1, key);
 
-  // SQL statementを実行
+  // execute the SQL statement
+  int count = 0;
   do {
     status = sqlite3_step(pStmt);
     if (status != SQLITE_ROW) break;
 
     int value = sqlite3_column_int(pStmt, 0);
     printf("{key, value} = {%d, %d}\n", key, value);
+    count++;
   } while(status == SQLITE_ROW);
+
+  // the given key is not found.
+  if (count == 0) {
+    printf("The given key is not found.\n");
+  }
 
   if (status != SQLITE_DONE) {
     return Error(status, "failed to execute sql statement");
   }
 
-  // destruct
+  // finalize
   sqlite3_reset(pStmt);
   sqlite3_clear_bindings(pStmt);
-
   sqlite3_finalize(pStmt);
 
   return 0;
