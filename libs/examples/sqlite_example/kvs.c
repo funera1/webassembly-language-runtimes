@@ -25,11 +25,11 @@ int file_exists(char *file_path)
 int main(int argc, char **argv)
 {
   // Input is incorrect.
-  if (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h"))
-  {
-    fprintf(stderr, USAGE_FMT, argv[0], argv[0]);
-    return -1;
-  }
+  // if (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h"))
+  // {
+  //   fprintf(stderr, USAGE_FMT, argv[0], argv[0]);
+  //   return -1;
+  // }
 
   // Open the database in memory.
   sqlite3 *db;
