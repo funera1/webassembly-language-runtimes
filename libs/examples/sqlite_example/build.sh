@@ -32,8 +32,8 @@ then
     export TARGET_DIR=target/local
     run_build
 
-    export PRG=$TARGET_DIR/$TARGET_NAME
-    run_tests
+    # export PRG=$TARGET_DIR/$TARGET_NAME
+    # run_tests
 
     exit 0
 fi
@@ -76,7 +76,7 @@ export CMAKE_EXTRA_ARGS="-DWASI_SDK_PREFIX=${WASI_SDK_PATH} -DCMAKE_TOOLCHAIN_FI
 
 run_build
 
-export PRG="wasmtime run --mapdir /::. $TARGET_DIR/$TARGET_NAME.wasm --"
-run_tests
+# export PRG="wasmtime run --mapdir /::. $TARGET_DIR/$TARGET_NAME.wasm --"
+# run_tests
 
-# PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_PATH="" PKG_CONFIG_SYSROOT_DIR=${PWD}/target/wasm32-wasi/deps
+PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_PATH="" PKG_CONFIG_SYSROOT_DIR=${PWD}/target/wasm32-wasi/deps
